@@ -113,6 +113,10 @@ def main(headless=False):
                     audio_state["last_spoken_time"] = now
                     audio_state["last_spoken_label"] = stable_label
                     
+            # --- Terminal Debug Output ---
+            if headless:
+                print(f"Detected: {label} -> Stable: {stable_label}")
+
             # --- Drawing ---
             draw_ui(frame, stable_label)
             draw_landmarks(frame, res.multi_hand_landmarks if res else last_drawn_landmarks)

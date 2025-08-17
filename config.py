@@ -51,4 +51,5 @@ L_THUMB_LEN_MIN = float(os.environ.get("SOYLE_L_THUMB_LEN_MIN", "0.42"))
 # -----------------
 # UI and Debug
 # -----------------
-DEBUG_OVERLAY = os.environ.get("SOYLE_DEBUG_OVERLAY", "false").lower() == "true"
+# Note: Debug overlay is only visible when not in headless mode.
+DEBUG_OVERLAY = os.environ.get("SOYLE_DEBUG_OVERLAY", "true" if IS_RASPBERRY_PI else "false").lower() == "true"
