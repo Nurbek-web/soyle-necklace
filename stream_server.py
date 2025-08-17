@@ -5,17 +5,17 @@ from picamera2 import Picamera2
 from libcamera import controls
 import simplejpeg
 import cv2
+import numpy as np
 
 # 1. Initialize Picamera2
 print("Initializing camera...")
 picam2 = Picamera2()
-# Use a standard, fast resolution for streaming
 config = picam2.create_video_configuration(main={"size": (640, 480)})
 picam2.configure(config)
-# Set white balance for indoor lighting BEFORE starting
+# Attempt to set a good starting white balance
 picam2.set_controls({"AwbEnable": 1, "AwbMode": controls.AwbModeEnum.Tungsten})
 picam2.start()
-time.sleep(1) # Allow camera to warm up
+time.sleep(2.0) # Give camera extra time to initialize and adjust
 print("Camera initialized.")
 
 # 2. Set up the server socket
@@ -31,19 +31,28 @@ print(f"Connection from: {addr}")
 
 try:
     while True:
-        # 3. Capture, encode, and send frame
-        frame = picam2.capture_array()
+        # 3. Capture frame
+        frame_bgra = picam2.capture_array()
         
-        # Convert from BGRA to BGR for standard JPEG encoding
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-
-        jpeg_buffer = simplejpeg.encode_jpeg(frame_bgr, quality=70, colorspace='BGR', fastdct=True)
+        # 4. Manual Color Correction to fix blue tint
+        frame_bgr = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2BGR)
         
-        # 4. Send the size of the jpeg buffer first
+        # Convert to YUV color space to isolate brightness from color
+        yuv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2YUV)
+        y, u, v = cv2.split(yuv)
+        
+        # Lower the 'u' channel (blue-yellow axis) to reduce blue
+        u = cv2.addWeighted(u, 0.9, np.zeros_like(u), 0.1, 0)
+        
+        # Merge and convert back to BGR
+        corrected_yuv = cv2.merge([y, u, v])
+        corrected_frame = cv2.cvtColor(corrected_yuv, cv2.COLOR_YUV2BGR)
+        
+        # 5. Encode and send corrected frame
+        jpeg_buffer = simplejpeg.encode_jpeg(corrected_frame, quality=75, colorspace='BGR', fastdct=True)
+        
         size_bytes = len(jpeg_buffer).to_bytes(4, 'big')
         conn.sendall(size_bytes)
-        
-        # 5. Send the jpeg buffer
         conn.sendall(jpeg_buffer)
 
 except (BrokenPipeError, ConnectionResetError):
