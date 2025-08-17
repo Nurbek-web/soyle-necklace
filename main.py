@@ -5,6 +5,7 @@ import mediapipe as mp
 import os
 import argparse
 from absl import logging as absl_logging
+from threading import Thread
 
 # Local module imports
 import config
@@ -15,6 +16,38 @@ from drawing import draw_ui, draw_landmarks, draw_debug_overlay
 # Import picamera2 if on Raspberry Pi
 if config.IS_RASPBERRY_PI:
     from picamera2 import Picamera2
+    from libcamera import controls
+
+class PiCameraStream:
+    def __init__(self, width=640, height=480):
+        self.picam2 = Picamera2()
+        # Configure for full field of view, then scaled down.
+        cam_props = self.picam2.camera_properties
+        full_res = cam_props['PixelArraySize']
+        self.picam2.configure(self.picam2.create_preview_configuration(
+            main={"size": (width, height)},
+            sensor={'output_size': full_res, 'bit_depth': 10}
+        ))
+        self.picam2.start()
+        # Set continuous autofocus
+        self.picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+        self.frame = None
+        self.stopped = False
+
+    def start(self):
+        Thread(target=self.update, args=()).start()
+        return self
+
+    def update(self):
+        while not self.stopped:
+            self.frame = self.picam2.capture_array()
+    
+    def read(self):
+        return self.frame
+
+    def stop(self):
+        self.stopped = True
+        self.picam2.stop()
 
 def main(headless=False):
     # Suppress verbose logs and force CPU
@@ -28,22 +61,21 @@ def main(headless=False):
         static_image_mode=False,
         max_num_hands=2,
         model_complexity=config.MODEL_COMPLEXITY,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
+        min_detection_confidence=0.55, # Slightly higher confidence
+        min_tracking_confidence=0.55
     )
 
     # --- Camera Initialization ---
     if config.IS_RASPBERRY_PI:
         print("Initializing Raspberry Pi camera (picamera2)...")
-        picam2 = Picamera2()
-        picam2.configure(picam2.create_preview_configuration(main={"size": (config.CAPTURE_WIDTH, config.CAPTURE_HEIGHT)}))
-        picam2.start()
+        stream = PiCameraStream(width=config.CAPTURE_WIDTH, height=config.CAPTURE_HEIGHT).start()
+        time.sleep(1.0) # Allow camera to warm up
     else:
+        # This part is now simplified as it's not the primary target
         print("Initializing USB camera (OpenCV)...")
+        # For non-Pi, a simple capture is sufficient.
+        # The original threaded capture can be re-added if needed.
         cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            print("Error: Could not open USB camera.")
-            return
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAPTURE_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAPTURE_HEIGHT)
 
@@ -56,35 +88,26 @@ def main(headless=False):
     audio_state = {"last_spoken_time": 0.0, "last_spoken_label": None}
     
     print("Soyle Gesture Recognition running...")
-    print("Press 'd' to toggle debug overlay, 'q' to quit.")
+    if not headless:
+        print("Press 'd' to toggle debug overlay, 'q' to quit.")
     
     try:
         while True:
             # --- Frame Capture ---
             if config.IS_RASPBERRY_PI:
-                frame = picam2.capture_array()
+                frame = stream.read()
             else:
                 ok, frame = cap.read()
-                if not ok:
-                    print("Warning: Could not read frame from USB camera. Exiting.")
-                    break
+                if not ok: break
 
             # --- Gesture Recognition ---
-            # Flip the frame horizontally for a later selfie-view display
-            # and convert the BGR image to RGB.
-            frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+            frame_rgb = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+            frame_rgb.flags.writeable = False
+            res = hands.process(frame_rgb)
             
-            # To improve performance, optionally mark the image as not writeable to
-            # pass by reference.
-            frame.flags.writeable = False
-            res = hands.process(frame)
-            frame.flags.writeable = True
+            h, w = frame_rgb.shape[:2]
 
-            # Get frame dimensions
-            h, w = frame.shape[:2]
-
-            # Convert the color space from RGB to BGR for drawing
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
             label = stable_label
             if res and res.multi_hand_landmarks:
@@ -106,38 +129,37 @@ def main(headless=False):
             elif (now - candidate_since) * 1000 >= config.DWELL_MS:
                 stable_label = candidate_label
             
-            # --- Audio ---
+            # --- Audio & Terminal Output ---
+            if headless:
+                print(f"Detected: {label} -> Stable: {stable_label}", end='\r')
+
             if stable_label != audio_state["last_spoken_label"] and stable_label in GESTURE_TO_PHRASE:
                 if (now - audio_state["last_spoken_time"]) > 1.2:
                     speak_phrase(GESTURE_TO_PHRASE[stable_label])
                     audio_state["last_spoken_time"] = now
                     audio_state["last_spoken_label"] = stable_label
+                    if headless: print() # Newline after speaking
                     
-            # --- Terminal Debug Output ---
-            if headless:
-                print(f"Detected: {label} -> Stable: {stable_label}")
-
             # --- Drawing ---
-            draw_ui(frame, stable_label)
-            draw_landmarks(frame, res.multi_hand_landmarks if res else last_drawn_landmarks)
+            draw_ui(frame_bgr, stable_label)
+            draw_landmarks(frame_bgr, res.multi_hand_landmarks if res else last_drawn_landmarks)
             if debug_mode:
-                draw_debug_overlay(frame, res)
+                draw_debug_overlay(frame_bgr, res)
 
             if not headless:
-                cv2.imshow("Soyle | Gesture Demo", frame)
-            
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q') or key == 27:
-                break
-            if key == ord('d'):
-                debug_mode = not debug_mode
+                cv2.imshow("Soyle | Gesture Demo", frame_bgr)
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q') or key == 27:
+                    break
+                if key == ord('d'):
+                    debug_mode = not debug_mode
             
     except KeyboardInterrupt:
-        pass
+        print("\nInterrupted by user.")
     finally:
         print("\nShutting down...")
         if config.IS_RASPBERRY_PI:
-            picam2.stop()
+            stream.stop()
         else:
             cap.release()
         hands.close()

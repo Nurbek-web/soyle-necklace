@@ -40,13 +40,13 @@ TTS_RATE_WPM = int(os.environ.get("SOYLE_TTS_RATE_WPM", "170"))
 # -----------------
 # Detection thresholds (tune if gestures are not detected reliably)
 # -----------------
-EXT_ANGLE_DEG = float(os.environ.get("SOYLE_EXT_ANGLE_DEG", "158"))   # finger extended if PIP angle >= this
-CURL_ANGLE_DEG = float(os.environ.get("SOYLE_CURL_ANGLE_DEG", "135"))  # finger curled if PIP angle <= this
-OK_PINCH_THRESH = float(os.environ.get("SOYLE_OK_PINCH_THRESH", "0.30"))
-L_ANGLE_MIN = float(os.environ.get("SOYLE_L_ANGLE_MIN", "65"))
-L_ANGLE_MAX = float(os.environ.get("SOYLE_L_ANGLE_MAX", "115"))
-L_INDEX_LEN_MIN = float(os.environ.get("SOYLE_L_INDEX_LEN_MIN", "0.50"))
-L_THUMB_LEN_MIN = float(os.environ.get("SOYLE_L_THUMB_LEN_MIN", "0.42"))
+EXT_ANGLE_DEG = float(os.environ.get("SOYLE_EXT_ANGLE_DEG", "155"))   # finger extended if PIP angle >= this
+CURL_ANGLE_DEG = float(os.environ.get("SOYLE_CURL_ANGLE_DEG", "140"))  # finger curled if PIP angle <= this
+OK_PINCH_THRESH = float(os.environ.get("SOYLE_OK_PINCH_THRESH", "0.32"))
+L_ANGLE_MIN = float(os.environ.get("SOYLE_L_ANGLE_MIN", "60"))
+L_ANGLE_MAX = float(os.environ.get("SOYLE_L_ANGLE_MAX", "120"))
+L_INDEX_LEN_MIN = float(os.environ.get("SOYLE_L_INDEX_LEN_MIN", "0.48"))
+L_THUMB_LEN_MIN = float(os.environ.get("SOYLE_L_THUMB_LEN_MIN", "0.40"))
 
 # -----------------
 # UI and Debug
