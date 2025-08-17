@@ -29,8 +29,6 @@ class PiCameraStream:
             sensor={'output_size': full_res, 'bit_depth': 10}
         ))
         self.picam2.start()
-        # Set continuous autofocus
-        self.picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
         self.frame = None
         self.stopped = False
 
