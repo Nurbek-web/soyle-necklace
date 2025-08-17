@@ -80,6 +80,9 @@ def main(headless=False):
             res = hands.process(frame)
             frame.flags.writeable = True
 
+            # Get frame dimensions
+            h, w = frame.shape[:2]
+
             # Convert the color space from RGB to BGR for drawing
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
