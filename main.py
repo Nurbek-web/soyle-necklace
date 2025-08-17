@@ -29,6 +29,8 @@ class PiCameraStream:
             sensor={'output_size': full_res, 'bit_depth': 10}
         ))
         self.picam2.start()
+        # Set white balance mode for indoor lighting
+        self.picam2.set_controls({"AwbMode": controls.AwbModeEnum.Indoor})
         self.frame = None
         self.stopped = False
 
