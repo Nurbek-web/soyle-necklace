@@ -2,10 +2,17 @@
 
 import math
 import numpy as np
-from config import (
-    EXT_ANGLE_DEG, CURL_ANGLE_DEG, OK_PINCH_THRESH,
-    L_ANGLE_MIN, L_ANGLE_MAX, L_INDEX_LEN_MIN, L_THUMB_LEN_MIN
-)
+
+# --- Detection Thresholds ---
+# These values were previously in config.py and are now here.
+# You can tune these to make detection more or less strict.
+EXT_ANGLE_DEG = 155   # finger extended if PIP angle >= this
+CURL_ANGLE_DEG = 140  # finger curled if PIP angle <= this
+OK_PINCH_THRESH = 0.32
+L_ANGLE_MIN = 60
+L_ANGLE_MAX = 120
+L_INDEX_LEN_MIN = 0.48
+L_THUMB_LEN_MIN = 0.40
 
 # ---------- Landmark processing and geometry utils ----------
 
