@@ -11,6 +11,8 @@ picam2 = Picamera2()
 # Use a standard, fast resolution for streaming
 config = picam2.create_video_configuration(main={"size": (640, 480)})
 picam2.configure(config)
+# Set white balance for indoor lighting BEFORE starting
+picam2.set_controls({"AwbEnable": 1, "AwbMode": controls.AwbModeEnum.Tungsten})
 picam2.start()
 time.sleep(1) # Allow camera to warm up
 print("Camera initialized.")
