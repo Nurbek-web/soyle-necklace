@@ -11,7 +11,7 @@ from threading import Thread
 import config
 from gestures import classify_gesture
 from audio import GESTURE_TO_PHRASE, speak_phrase
-from drawing import draw_ui, draw_landmarks, draw_debug_overlay
+from drawing import draw_ui, draw_landmarks, DebugDashboard
 
 # Import picamera2 if on Raspberry Pi
 if config.IS_RASPBERRY_PI:
@@ -21,16 +21,18 @@ if config.IS_RASPBERRY_PI:
 class PiCameraStream:
     def __init__(self, width=640, height=480):
         self.picam2 = Picamera2()
-        # Configure for full field of view, then scaled down.
-        cam_props = self.picam2.camera_properties
-        full_res = cam_props['PixelArraySize']
         self.picam2.configure(self.picam2.create_preview_configuration(
             main={"size": (width, height)},
-            sensor={'output_size': full_res, 'bit_depth': 10}
+            controls={"FrameDurationLimits": (33333, 33333)} # Lock framerate to 30fps
         ))
         self.picam2.start()
-        # Set white balance mode for indoor lighting
-        self.picam2.set_controls({"AwbMode": controls.AwbModeEnum.Indoor})
+        # Initial camera settings
+        self.controls = {
+            "AwbMode": controls.AwbModeEnum.Tungsten,
+            "ExposureTime": 10000,
+            "AnalogueGain": 1.0
+        }
+        self.picam2.set_controls(self.controls)
         self.frame = None
         self.stopped = False
 
@@ -48,114 +50,82 @@ class PiCameraStream:
     def stop(self):
         self.stopped = True
         self.picam2.stop()
+        
+    def set_exposure(self, value):
+        self.controls["ExposureTime"] = int(value)
+        self.picam2.set_controls(self.controls)
+
+    def set_gain(self, value):
+        self.controls["AnalogueGain"] = float(value)
+        self.picam2.set_controls(self.controls)
+
 
 def main(headless=False):
-    # Suppress verbose logs and force CPU
-    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
-    os.environ.setdefault("MEDIAPIPE_DISABLE_GPU", "1")
     absl_logging.set_verbosity(absl_logging.ERROR)
 
-    # MediaPipe Hands setup
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         static_image_mode=False,
-        max_num_hands=2,
+        max_num_hands=1, # Single hand for clarity in debug
         model_complexity=config.MODEL_COMPLEXITY,
-        min_detection_confidence=0.55, # Slightly higher confidence
-        min_tracking_confidence=0.55
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5
     )
 
-    # --- Camera Initialization ---
     if config.IS_RASPBERRY_PI:
-        print("Initializing Raspberry Pi camera (picamera2)...")
         stream = PiCameraStream(width=config.CAPTURE_WIDTH, height=config.CAPTURE_HEIGHT).start()
-        time.sleep(1.0) # Allow camera to warm up
+        time.sleep(1.0)
     else:
-        # This part is now simplified as it's not the primary target
-        print("Initializing USB camera (OpenCV)...")
-        # For non-Pi, a simple capture is sufficient.
-        # The original threaded capture can be re-added if needed.
         cap = cv2.VideoCapture(0)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAPTURE_WIDTH)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAPTURE_HEIGHT)
 
-    # Application state
+    # State and dashboard setup
     stable_label = "NO_HAND"
-    candidate_label = None
-    candidate_since = 0.0
-    last_drawn_landmarks = None
-    debug_mode = config.DEBUG_OVERLAY
-    audio_state = {"last_spoken_time": 0.0, "last_spoken_label": None}
-    
+    dashboard = DebugDashboard()
+    gesture_debug_info = {}
+
     print("Soyle Gesture Recognition running...")
-    if not headless:
-        print("Press 'd' to toggle debug overlay, 'q' to quit.")
+    print("Camera Controls (Pi Only): [U/J] Exposure, [I/K] Gain")
     
     try:
         while True:
-            # --- Frame Capture ---
             if config.IS_RASPBERRY_PI:
                 frame = stream.read()
             else:
                 ok, frame = cap.read()
                 if not ok: break
 
-            # --- Gesture Recognition ---
             frame_rgb = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
             frame_rgb.flags.writeable = False
             res = hands.process(frame_rgb)
             
             h, w = frame_rgb.shape[:2]
-
             frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-            label = stable_label
             if res and res.multi_hand_landmarks:
-                detected_labels = []
-                for hand_lms in res.multi_hand_landmarks:
-                    lm = [(int(p.x * w), int(p.y * h)) for p in hand_lms.landmark]
-                    detected_labels.append(classify_gesture(lm))
-                
-                non_empty = [l for l in detected_labels if l not in ("UNKNOWN", "NO_HAND")]
-                label = "UNKNOWN" if not non_empty else ("+".join(sorted(set(non_empty)))[:24] if len(set(non_empty)) > 1 else non_empty[0])
-                last_drawn_landmarks = res.multi_hand_landmarks
-            elif res:
-                label = "NO_HAND"
+                lm = [(int(p.x * w), int(p.y * h)) for p in res.multi_hand_landmarks[0].landmark]
+                stable_label, gesture_debug_info = classify_gesture(lm)
+            else:
+                stable_label = "NO_HAND"
+                gesture_debug_info = {}
             
-            now = time.time()
-            if label != candidate_label:
-                candidate_label = label
-                candidate_since = now
-            elif (now - candidate_since) * 1000 >= config.DWELL_MS:
-                stable_label = candidate_label
-            
-            # --- Audio & Terminal Output ---
-            if headless:
-                print(f"Detected: {label} -> Stable: {stable_label}", end='\r')
-
-            if stable_label != audio_state["last_spoken_label"] and stable_label in GESTURE_TO_PHRASE:
-                if (now - audio_state["last_spoken_time"]) > 1.2:
-                    speak_phrase(GESTURE_TO_PHRASE[stable_label])
-                    audio_state["last_spoken_time"] = now
-                    audio_state["last_spoken_label"] = stable_label
-                    if headless: print() # Newline after speaking
-                    
-            # --- Drawing ---
             draw_ui(frame_bgr, stable_label)
-            draw_landmarks(frame_bgr, res.multi_hand_landmarks if res else last_drawn_landmarks)
-            if debug_mode:
-                draw_debug_overlay(frame_bgr, res)
+            draw_landmarks(frame_bgr, res.multi_hand_landmarks)
+            dashboard.render(frame_bgr, res, gesture_debug_info)
 
-            if not headless:
-                cv2.imshow("Soyle | Gesture Demo", frame_bgr)
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q') or key == 27:
-                    break
-                if key == ord('d'):
-                    debug_mode = not debug_mode
+            cv2.imshow("Soyle | Gesture Diagnostic", frame_bgr)
             
-    except KeyboardInterrupt:
-        print("\nInterrupted by user.")
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q') or key == 27:
+                break
+            
+            if config.IS_RASPBERRY_PI:
+                if key == ord('u'): stream.set_exposure(stream.controls['ExposureTime'] + 1000)
+                if key == ord('j'): stream.set_exposure(max(1000, stream.controls['ExposureTime'] - 1000))
+                if key == ord('i'): stream.set_gain(stream.controls['AnalogueGain'] + 0.5)
+                if key == ord('k'): stream.set_gain(max(1.0, stream.controls['AnalogueGain'] - 0.5))
+            
     finally:
         print("\nShutting down...")
         if config.IS_RASPBERRY_PI:
@@ -163,12 +133,7 @@ def main(headless=False):
         else:
             cap.release()
         hands.close()
-        if not headless:
-            cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Soyle Gesture Recognition")
-    parser.add_argument('--headless', action='store_true', help='Run in headless mode (no GUI window)')
-    args = parser.parse_args()
-
-    main(headless=args.headless)
+    main()

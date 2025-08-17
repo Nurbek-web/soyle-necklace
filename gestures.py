@@ -53,53 +53,60 @@ def classify_gesture(lm):
     RG_TIP, RG_PIP, RG_MCP = 16, 14, 13
     PK_TIP, PK_PIP, PK_MCP = 20, 18, 17
 
+    debug_info = {}
+
     def finger_state(tip, pip, mcp, ext_th=EXT_ANGLE_DEG, curl_th=CURL_ANGLE_DEG):
         ang = angle_deg(lm[tip], lm[pip], lm[mcp])
-        if ang >= ext_th: return "extended"
-        if ang <= curl_th: return "curled"
-        return "unknown"
+        state = "unknown"
+        if ang >= ext_th: state = "extended"
+        if ang <= curl_th: state = "curled"
+        return state, ang
 
     def thumb_state():
         ang = angle_deg(lm[TH_TIP], lm[TH_IP], lm[TH_MCP])
         wrist_to_tip = dist(lm[WRIST], lm[TH_TIP])
         wrist_to_mcp = dist(lm[WRIST], lm[TH_MCP])
-        if ang >= 150 and wrist_to_tip > wrist_to_mcp * 0.85: return "extended"
-        if ang <= 120 and wrist_to_tip < wrist_to_mcp * 0.95: return "curled"
-        return "unknown"
+        state = "unknown"
+        if ang >= 150 and wrist_to_tip > wrist_to_mcp * 0.85: state = "extended"
+        if ang <= 120 and wrist_to_tip < wrist_to_mcp * 0.95: state = "curled"
+        return state, ang
 
-    th_s = thumb_state()
-    ix_s = finger_state(IX_TIP, IX_PIP, IX_MCP)
-    md_s = finger_state(MD_TIP, MD_PIP, MD_MCP)
-    rg_s = finger_state(RG_TIP, RG_PIP, RG_MCP)
-    pk_s = finger_state(PK_TIP, PK_PIP, PK_MCP)
+    th_s, th_a = thumb_state()
+    ix_s, ix_a = finger_state(IX_TIP, IX_PIP, IX_MCP)
+    md_s, md_a = finger_state(MD_TIP, MD_PIP, MD_MCP)
+    rg_s, rg_a = finger_state(RG_TIP, RG_PIP, RG_MCP)
+    pk_s, pk_a = finger_state(PK_TIP, PK_PIP, PK_MCP)
+
+    debug_info['states'] = {'TH': th_s, 'IX': ix_s, 'MD': md_s, 'RG': rg_s, 'PK': pk_s}
+    debug_info['angles'] = {'TH': th_a, 'IX': ix_a, 'MD': md_a, 'RG': rg_a, 'PK': pk_a}
 
     thumb_ext, index_ext, middle_ext, ring_ext, pinky_ext = (s == "extended" for s in [th_s, ix_s, md_s, rg_s, pk_s])
     thumb_curled, index_curled, middle_curled, ring_curled, pinky_curled = (s == "curled" for s in [th_s, ix_s, md_s, rg_s, pk_s])
 
     thumb_index_tip = norm_dist(lm, TH_TIP, IX_TIP)
 
-    if thumb_ext and index_ext and pinky_ext and middle_curled and ring_curled: return "ILY"
-    if index_ext and pinky_ext and middle_curled and ring_curled: return "ROCK"
-    if index_ext and middle_ext and ring_ext and pinky_ext: return "FOUR"
-    if thumb_index_tip < OK_PINCH_THRESH and (middle_ext or ring_ext or pinky_ext): return "OK"
-    if thumb_index_tip < OK_PINCH_THRESH and not (middle_ext or ring_ext or pinky_ext): return "PINCH"
-    if thumb_ext and pinky_ext and index_curled and middle_curled and ring_curled: return "CALL_ME"
+    if thumb_ext and index_ext and pinky_ext and middle_curled and ring_curled: return "ILY", debug_info
+    if index_ext and pinky_ext and middle_curled and ring_curled: return "ROCK", debug_info
+    if index_ext and middle_ext and ring_ext and pinky_ext: return "FOUR", debug_info
+    if thumb_index_tip < OK_PINCH_THRESH and (middle_ext or ring_ext or pinky_ext): return "OK", debug_info
+    if thumb_index_tip < OK_PINCH_THRESH and not (middle_ext or ring_ext or pinky_ext): return "PINCH", debug_info
+    if thumb_ext and pinky_ext and index_curled and middle_curled and ring_curled: return "CALL_ME", debug_info
     if index_ext and thumb_ext and middle_curled and ring_curled:
         ang_t_i = angle_between_points(lm[IX_TIP], lm[IX_MCP], lm[TH_TIP], lm[TH_MCP])
         idx_len = norm_dist(lm, IX_TIP, IX_MCP)
         th_len = norm_dist(lm, TH_TIP, TH_MCP)
         if L_ANGLE_MIN <= ang_t_i <= L_ANGLE_MAX and idx_len > L_INDEX_LEN_MIN and th_len > L_THUMB_LEN_MIN:
-            return "L"
-    if thumb_ext and index_ext and middle_ext and ring_curled and pinky_curled: return "THREE"
+            return "L", debug_info
+    if thumb_ext and index_ext and middle_ext and ring_curled and pinky_curled: return "THREE", debug_info
 
     ext_count = sum([thumb_ext, index_ext, middle_ext, ring_ext, pinky_ext])
-    if ext_count <= 1: return "FIST"
-    if index_ext and middle_ext and ring_ext and pinky_ext and not (middle_curled or ring_curled): return "PALM"
-    if index_ext and middle_ext and not (ring_ext or pinky_ext): return "PEACE"
+    if ext_count <= 1: return "FIST", debug_info
+    if index_ext and middle_ext and ring_ext and pinky_ext and not (middle_curled or ring_curled): return "PALM", debug_info
+    if index_ext and middle_ext and not (ring_ext or pinky_ext): return "PEACE", debug_info
     if thumb_ext and index_curled and middle_curled and ring_curled and pinky_curled:
         margin = max(12, palm_scale(lm) * 0.15)
-        if lm[TH_TIP][1] < lm[WRIST][1] - margin: return "THUMB_UP"
-        if lm[TH_TIP][1] > lm[WRIST][1] + margin: return "THUMB_DOWN"
-    if index_ext and not (middle_ext or ring_ext or pinky_ext): return "POINT"
+        if lm[TH_TIP][1] < lm[WRIST][1] - margin: return "THUMB_UP", debug_info
+        if lm[TH_TIP][1] > lm[WRIST][1] + margin: return "THUMB_DOWN", debug_info
+    if index_ext and not (middle_ext or ring_ext or pinky_ext): return "POINT", debug_info
 
-    return "UNKNOWN"
+    return "UNKNOWN", debug_info
