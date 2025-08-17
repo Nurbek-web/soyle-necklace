@@ -63,6 +63,8 @@ def main(headless=False):
             # --- Frame Capture ---
             if config.IS_RASPBERRY_PI:
                 frame = picam2.capture_array()
+                # Convert BGRA to BGR
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             else:
                 ok, frame = cap.read()
                 if not ok:
