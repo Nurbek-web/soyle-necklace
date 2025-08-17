@@ -3,19 +3,31 @@
 import os
 
 # -----------------
+# Auto-detect Raspberry Pi
+# -----------------
+def is_raspberry_pi():
+    try:
+        with open('/sys/firmware/devicetree/base/model', 'r') as m:
+            if 'raspberry pi' in m.read().lower(): return True
+    except Exception:
+        pass
+    return False
+
+IS_RASPBERRY_PI = is_raspberry_pi()
+
+# -----------------
 # Performance/behavior knobs
 # -----------------
 MODEL_COMPLEXITY = int(os.environ.get("SOYLE_MODEL_COMPLEXITY", "0"))  # 0 = fast, 1 = balanced
-PROCESS_EVERY_N_FRAMES = int(os.environ.get("SOYLE_PROCESS_EVERY_N_FRAMES", "2")) # 1 = realtime, 2-3 = good for Pi
+PROCESS_EVERY_N_FRAMES = int(os.environ.get("SOYLE_PROCESS_EVERY_N_FRAMES", "3" if IS_RASPBERRY_PI else "1"))
 DWELL_MS = int(os.environ.get("SOYLE_DWELL_MS", "450"))  # Time gesture must be stable to be recognized
 
 # -----------------
 # Camera settings
 # -----------------
-# Resolution; smaller is faster. 320x240 is a good starting point for Pi 4.
-CAPTURE_WIDTH = int(os.environ.get("SOYLE_CAPTURE_WIDTH", "480"))
-CAPTURE_HEIGHT = int(os.environ.get("SOYLE_CAPTURE_HEIGHT", "360"))
-OPENCV_THREADS = int(os.environ.get("SOYLE_OPENCV_THREADS", "2")) # Threads for OpenCV processing
+CAPTURE_WIDTH = int(os.environ.get("SOYLE_CAPTURE_WIDTH", "640"))
+CAPTURE_HEIGHT = int(os.environ.get("SOYLE_CAPTURE_HEIGHT", "480"))
+OPENCV_THREADS = int(os.environ.get("SOYLE_OPENCV_THREADS", "2"))
 
 # -----------------
 # Language and Speech settings

@@ -11,18 +11,15 @@ from gestures import classify_gesture
 from audio import GESTURE_TO_PHRASE, speak_phrase
 from drawing import draw_ui, draw_landmarks, draw_debug_overlay
 
+# Import picamera2 if on Raspberry Pi
+if config.IS_RASPBERRY_PI:
+    from picamera2 import Picamera2
+
 def main():
     # Suppress verbose logs and force CPU
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
     os.environ.setdefault("MEDIAPIPE_DISABLE_GPU", "1")
     absl_logging.set_verbosity(absl_logging.ERROR)
-
-    # OpenCV optimizations
-    cv2.setUseOptimized(True)
-    try:
-        cv2.setNumThreads(config.OPENCV_THREADS)
-    except:
-        pass
 
     # MediaPipe Hands setup
     mp_hands = mp.solutions.hands
@@ -34,46 +31,49 @@ def main():
         min_tracking_confidence=0.5
     )
 
-    # Standard camera capture
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Could not open video stream.")
-        return
-        
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAPTURE_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAPTURE_HEIGHT)
-    cap.set(cv2.CAP_PROP_FPS, 30)
+    # --- Camera Initialization ---
+    if config.IS_RASPBERRY_PI:
+        print("Initializing Raspberry Pi camera (picamera2)...")
+        picam2 = Picamera2()
+        picam2.configure(picam2.create_preview_configuration(main={"size": (config.CAPTURE_WIDTH, config.CAPTURE_HEIGHT)}))
+        picam2.start()
+    else:
+        print("Initializing USB camera (OpenCV)...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("Error: Could not open USB camera.")
+            return
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAPTURE_WIDTH)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAPTURE_HEIGHT)
 
     # Application state
     stable_label = "NO_HAND"
     candidate_label = None
     candidate_since = 0.0
-    frame_count = 0
     last_drawn_landmarks = None
     debug_mode = config.DEBUG_OVERLAY
+    audio_state = {"last_spoken_time": 0.0, "last_spoken_label": None}
     
-    audio_state = {
-        "last_spoken_time": 0.0,
-        "last_spoken_label": None
-    }
-    
-    print("Soyle Gesture Recognition running (single-threaded mode)...")
+    print("Soyle Gesture Recognition running...")
     print("Press 'd' to toggle debug overlay, 'q' to quit.")
     
     try:
         while True:
-            ok, frame = cap.read()
-            if not ok:
-                print("Warning: Could not read frame from camera. Exiting.")
-                break
+            # --- Frame Capture ---
+            if config.IS_RASPBERRY_PI:
+                frame = picam2.capture_array()
+            else:
+                ok, frame = cap.read()
+                if not ok:
+                    print("Warning: Could not read frame from USB camera. Exiting.")
+                    break
 
             frame = cv2.flip(frame, 1)
             h, w = frame.shape[:2]
 
-            res = None
-            # Always process frames in this simplified mode for debugging
+            # --- Gesture Recognition ---
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            rgb.flags.writeable = False # Performance hint
+            rgb.flags.writeable = False
             res = hands.process(rgb)
             rgb.flags.writeable = True
 
@@ -106,11 +106,7 @@ def main():
                     
             # --- Drawing ---
             draw_ui(frame, stable_label)
-            if res and res.multi_hand_landmarks:
-                draw_landmarks(frame, res.multi_hand_landmarks)
-            elif last_drawn_landmarks:
-                draw_landmarks(frame, last_drawn_landmarks)
-            
+            draw_landmarks(frame, res.multi_hand_landmarks if res else last_drawn_landmarks)
             if debug_mode:
                 draw_debug_overlay(frame, res)
 
@@ -121,14 +117,15 @@ def main():
                 break
             if key == ord('d'):
                 debug_mode = not debug_mode
-
-            frame_count += 1
             
     except KeyboardInterrupt:
         pass
     finally:
         print("\nShutting down...")
-        cap.release()
+        if config.IS_RASPBERRY_PI:
+            picam2.stop()
+        else:
+            cap.release()
         hands.close()
         cv2.destroyAllWindows()
 
