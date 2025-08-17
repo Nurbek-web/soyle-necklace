@@ -23,14 +23,17 @@ class PiCameraStream:
         self.picam2 = Picamera2()
         self.picam2.configure(self.picam2.create_preview_configuration(
             main={"size": (width, height)},
-            controls={"FrameDurationLimits": (33333, 33333)} # Lock framerate to 30fps
+            controls={
+                "FrameDurationLimits": (1000, 33333), # Allow longer exposure
+            }
         ))
         self.picam2.start()
-        # Initial camera settings
+        # Initial camera settings for low light
         self.controls = {
-            "AwbMode": controls.AwbModeEnum.Tungsten,
-            "ExposureTime": 10000,
-            "AnalogueGain": 1.0
+            "AwbEnable": 1,
+            "AwbMode": controls.AwbModeEnum.Auto,
+            "ExposureTime": 20000, # Start with a higher exposure
+            "AnalogueGain": 2.0   # Start with a higher gain
         }
         self.picam2.set_controls(self.controls)
         self.frame = None
