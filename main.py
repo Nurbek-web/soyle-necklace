@@ -3,6 +3,7 @@ import time
 import numpy as np
 import mediapipe as mp
 import os
+import argparse
 from absl import logging as absl_logging
 
 # Local module imports
@@ -15,7 +16,7 @@ from drawing import draw_ui, draw_landmarks, draw_debug_overlay
 if config.IS_RASPBERRY_PI:
     from picamera2 import Picamera2
 
-def main():
+def main(headless=False):
     # Suppress verbose logs and force CPU
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
     os.environ.setdefault("MEDIAPIPE_DISABLE_GPU", "1")
@@ -110,7 +111,8 @@ def main():
             if debug_mode:
                 draw_debug_overlay(frame, res)
 
-            cv2.imshow("Soyle | Gesture Demo", frame)
+            if not headless:
+                cv2.imshow("Soyle | Gesture Demo", frame)
             
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q') or key == 27:
@@ -127,7 +129,12 @@ def main():
         else:
             cap.release()
         hands.close()
-        cv2.destroyAllWindows()
+        if not headless:
+            cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Soyle Gesture Recognition")
+    parser.add_argument('--headless', action='store_true', help='Run in headless mode (no GUI window)')
+    args = parser.parse_args()
+
+    main(headless=args.headless)
