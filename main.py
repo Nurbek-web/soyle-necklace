@@ -63,22 +63,25 @@ def main(headless=False):
             # --- Frame Capture ---
             if config.IS_RASPBERRY_PI:
                 frame = picam2.capture_array()
-                # Convert BGRA to BGR
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             else:
                 ok, frame = cap.read()
                 if not ok:
                     print("Warning: Could not read frame from USB camera. Exiting.")
                     break
 
-            frame = cv2.flip(frame, 1)
-            h, w = frame.shape[:2]
-
             # --- Gesture Recognition ---
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            rgb.flags.writeable = False
-            res = hands.process(rgb)
-            rgb.flags.writeable = True
+            # Flip the frame horizontally for a later selfie-view display
+            # and convert the BGR image to RGB.
+            frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+            
+            # To improve performance, optionally mark the image as not writeable to
+            # pass by reference.
+            frame.flags.writeable = False
+            res = hands.process(frame)
+            frame.flags.writeable = True
+
+            # Convert the color space from RGB to BGR for drawing
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             label = stable_label
             if res and res.multi_hand_landmarks:
