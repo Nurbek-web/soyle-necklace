@@ -1,5 +1,3 @@
-# audio.py
-
 import subprocess
 import os
 import shutil
@@ -17,9 +15,9 @@ def speak_phrase(gesture_label: str):
         file_path = os.path.join(AUDIO_DIR, f"{gesture_label}.wav")
 
         if os.path.exists(file_path):
-            # aplay is the most basic and reliable player.
-            # We specify the exact hardware device to use.
-            subprocess.run(["aplay", "-D", "hw:3,0", file_path], check=True,
+            # aplay will now use the system's default device, which we
+            # have configured to be the USB sound card.
+            subprocess.run(["aplay", file_path], check=True,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             print(f"Warning: Audio file not found for gesture '{gesture_label}' at {file_path}")

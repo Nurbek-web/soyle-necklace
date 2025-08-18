@@ -1,4 +1,3 @@
-# stream_server.py
 import socket
 import time
 from picamera2 import Picamera2
@@ -7,36 +6,28 @@ import simplejpeg
 import cv2
 import numpy as np
 import threading
-import subprocess
 
 # Import audio components
 from audio import speak_phrase
 
 # --- Audio State ---
-# We use a simple list to hold the last spoken label, making it mutable for threads
 audio_state = {"last_spoken_label": "NO_HAND", "last_spoken_time": 0.0}
 
 def handle_audio(conn):
     """This function runs in a separate thread to handle incoming gesture labels."""
     try:
         while True:
-            # 1. Receive the size of the incoming label
             size_bytes = conn.recv(1)
-            if not size_bytes:
-                break
+            if not size_bytes: break
             label_size = int.from_bytes(size_bytes, 'big')
-
-            # 2. Receive the label
             label = conn.recv(label_size).decode('utf-8')
-            if not label:
-                break
+            if not label: break
 
-            # 3. Speak the phrase if it's a new, valid gesture
             now = time.time()
             if label != audio_state["last_spoken_label"]:
                 if (now - audio_state["last_spoken_time"]) > 1.2:
                     print(f"Received gesture '{label}', playing audio...")
-                    speak_phrase(label) # Pass the label directly
+                    speak_phrase(label)
                     audio_state["last_spoken_label"] = label
                     audio_state["last_spoken_time"] = now
 
@@ -46,16 +37,6 @@ def handle_audio(conn):
         print(f"Audio handler error: {e}")
     finally:
         print("Audio handler thread stopped.")
-
-# --- System Setup ---
-def set_pi_volume():
-    """Sets the volume of the USB audio device to 100% using amixer."""
-    try:
-        # We target card 3 specifically with the '-c 3' flag.
-        subprocess.run(["amixer", "-c", "3", "set", "PCM", "100%"], check=True)
-        print("System volume for USB audio device set to 100%.")
-    except Exception as e:
-        print(f"Could not set volume: {e}")
 
 # 1. Initialize Picamera2
 print("Initializing camera...")
@@ -68,10 +49,7 @@ picam2.start()
 time.sleep(2.0) # Give camera extra time to initialize and adjust
 print("Camera initialized.")
 
-# 2. Set system volume to 100%
-set_pi_volume()
-
-# 3. Set up the server socket
+# 2. Set up the server socket
 HOST = '0.0.0.0' # Listen on all network interfaces
 PORT = 8485
 server_socket = socket.socket()
