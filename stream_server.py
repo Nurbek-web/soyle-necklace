@@ -6,6 +6,45 @@ from libcamera import controls
 import simplejpeg
 import cv2
 import numpy as np
+import threading
+
+# Import audio components
+from audio import GESTURE_TO_PHRASE, speak_phrase
+
+# --- Audio State ---
+# We use a simple list to hold the last spoken label, making it mutable for threads
+audio_state = {"last_spoken_label": "NO_HAND", "last_spoken_time": 0.0}
+
+def handle_audio(conn):
+    """This function runs in a separate thread to handle incoming gesture labels."""
+    try:
+        while True:
+            # 1. Receive the size of the incoming label
+            size_bytes = conn.recv(1)
+            if not size_bytes:
+                break
+            label_size = int.from_bytes(size_bytes, 'big')
+
+            # 2. Receive the label
+            label = conn.recv(label_size).decode('utf-8')
+            if not label:
+                break
+
+            # 3. Speak the phrase if it's a new, valid gesture
+            now = time.time()
+            if label != audio_state["last_spoken_label"] and label in GESTURE_TO_PHRASE:
+                if (now - audio_state["last_spoken_time"]) > 1.2:
+                    print(f"Received gesture '{label}', speaking phrase...")
+                    speak_phrase(GESTURE_TO_PHRASE[label])
+                    audio_state["last_spoken_label"] = label
+                    audio_state["last_spoken_time"] = now
+
+    except (BrokenPipeError, ConnectionResetError):
+        print("Audio handler: Client disconnected.")
+    except Exception as e:
+        print(f"Audio handler error: {e}")
+    finally:
+        print("Audio handler thread stopped.")
 
 # 1. Initialize Picamera2
 print("Initializing camera...")
@@ -28,6 +67,11 @@ server_socket.listen(0)
 print(f"Server started on {HOST}:{PORT}. Waiting for connection...")
 conn, addr = server_socket.accept()
 print(f"Connection from: {addr}")
+
+# Start the audio handler thread
+audio_thread = threading.Thread(target=handle_audio, args=(conn,))
+audio_thread.daemon = True
+audio_thread.start()
 
 try:
     while True:

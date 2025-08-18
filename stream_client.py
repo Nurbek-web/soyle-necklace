@@ -28,6 +28,7 @@ def main():
     dashboard = DebugDashboard()
     stable_label = "CONNECTING"
     gesture_debug_info = {}
+    last_sent_label = None
 
     print(f"Attempting to connect to Raspberry Pi at {PI_ADDRESS}:{PORT}...")
     
@@ -70,6 +71,14 @@ def main():
                 else:
                     stable_label = "NO_HAND"
                     gesture_debug_info = {}
+
+                # Send the stable label back to the Pi for audio
+                if stable_label != last_sent_label and stable_label != "UNKNOWN":
+                    label_bytes = stable_label.encode('utf-8')
+                    size_bytes = len(label_bytes).to_bytes(1, 'big')
+                    client_socket.sendall(size_bytes)
+                    client_socket.sendall(label_bytes)
+                    last_sent_label = stable_label
 
                 # 5. Draw UI and display
                 draw_ui(frame, stable_label)
