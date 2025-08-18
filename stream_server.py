@@ -9,7 +9,7 @@ import numpy as np
 import threading
 
 # Import audio components
-from audio import speak_phrase, set_pi_volume
+from audio import speak_phrase
 
 # --- Audio State ---
 # We use a simple list to hold the last spoken label, making it mutable for threads
@@ -58,7 +58,7 @@ time.sleep(2.0) # Give camera extra time to initialize and adjust
 print("Camera initialized.")
 
 # 2. Set system volume to 100%
-set_pi_volume()
+# set_pi_volume() # This line is removed as per the edit hint.
 
 # 3. Set up the server socket
 HOST = '0.0.0.0' # Listen on all network interfaces
