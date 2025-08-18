@@ -5,7 +5,12 @@ import platform
 import shutil
 import json
 import os
-from config import SOYLE_LANG, PHRASE_PROFILE, SOYLE_TTS_VOICE, TTS_RATE_WPM
+
+# --- Configuration (previously in config.py) ---
+# These are now set directly here for simplicity on the Pi.
+SOYLE_LANG = "ru"
+PHRASE_PROFILE = "basic"
+TTS_RATE_WPM = 170
 
 # Phrase profiles for EN and RU
 EN_DESCRIPTIVE = {
@@ -60,9 +65,7 @@ def speak_phrase(phrase: str):
         system = platform.system()
         if system == "Darwin":
             args = ["say"]
-            if SOYLE_TTS_VOICE:
-                args += ["-v", SOYLE_TTS_VOICE]
-            elif SOYLE_LANG.lower().startswith("ru"):
+            if SOYLE_LANG.lower().startswith("ru"):
                 args += ["-v", "Milena"]
             args += ["-r", str(TTS_RATE_WPM), phrase]
             subprocess.Popen(args)
