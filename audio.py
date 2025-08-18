@@ -63,7 +63,8 @@ def set_pi_volume(level="100%"):
     """Set the system volume on a Raspberry Pi."""
     if shutil.which("amixer"):
         try:
-            subprocess.run(["amixer", "set", "Master", level], check=True)
+            # Use 'PCM' as the control name, which is correct for this device.
+            subprocess.run(["amixer", "set", "PCM", level], check=True)
             print(f"System volume set to {level}.")
         except Exception as e:
             print(f"Could not set volume: {e}")
