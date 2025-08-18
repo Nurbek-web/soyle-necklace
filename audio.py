@@ -18,8 +18,8 @@ def speak_phrase(gesture_label: str):
 
         if os.path.exists(file_path):
             # aplay is the most basic and reliable player.
-            # No volume control needed as the system default is used.
-            subprocess.run(["aplay", file_path], check=True,
+            # We specify the exact hardware device to use.
+            subprocess.run(["aplay", "-D", "hw:3,0", file_path], check=True,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             print(f"Warning: Audio file not found for gesture '{gesture_label}' at {file_path}")

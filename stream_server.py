@@ -7,6 +7,7 @@ import simplejpeg
 import cv2
 import numpy as np
 import threading
+import subprocess
 
 # Import audio components
 from audio import speak_phrase
@@ -46,6 +47,16 @@ def handle_audio(conn):
     finally:
         print("Audio handler thread stopped.")
 
+# --- System Setup ---
+def set_pi_volume():
+    """Sets the volume of the USB audio device to 100% using amixer."""
+    try:
+        # We target card 3 specifically with the '-c 3' flag.
+        subprocess.run(["amixer", "-c", "3", "set", "PCM", "100%"], check=True)
+        print("System volume for USB audio device set to 100%.")
+    except Exception as e:
+        print(f"Could not set volume: {e}")
+
 # 1. Initialize Picamera2
 print("Initializing camera...")
 picam2 = Picamera2()
@@ -58,7 +69,7 @@ time.sleep(2.0) # Give camera extra time to initialize and adjust
 print("Camera initialized.")
 
 # 2. Set system volume to 100%
-# set_pi_volume() # This line is removed as per the edit hint.
+set_pi_volume()
 
 # 3. Set up the server socket
 HOST = '0.0.0.0' # Listen on all network interfaces
