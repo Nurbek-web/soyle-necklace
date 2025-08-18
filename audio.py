@@ -70,7 +70,7 @@ def set_pi_volume(level="100%"):
             print(f"Could not set volume: {e}")
 
 def speak_phrase(phrase: str):
-    """Speak a short phrase. macOS: say; Linux: espeak/spd-say."""
+    """Speak a short phrase. macOS: say; Linux: espeak-ng."""
     try:
         system = platform.system()
         if system == "Darwin":
@@ -80,11 +80,11 @@ def speak_phrase(phrase: str):
             args += ["-r", str(TTS_RATE_WPM), phrase]
             subprocess.Popen(args)
         elif system == "Linux":
-            # Use a more direct method for speech-dispatcher that is more robust.
-            if shutil.which("spd-say"):
+            # espeak-ng is often more direct and reliable than spd-say
+            if shutil.which("espeak-ng"):
+                subprocess.run(['espeak-ng', '-v', 'ru', '-s', str(TTS_RATE_WPM), phrase], check=True)
+            elif shutil.which("spd-say"):
                 subprocess.run(['spd-say', '-w', '-l', 'ru', phrase], check=True)
-            elif shutil.which("espeak"):
-                subprocess.run(['espeak', '-v', 'ru', '-s', str(TTS_RATE_WPM), phrase], check=True)
             else:
                 print("No TTS engine found.")
     except Exception as e:
