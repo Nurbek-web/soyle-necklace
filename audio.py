@@ -7,6 +7,23 @@ import shutil
 # --- Configuration ---
 SOYLE_LANG = "ru-RU" # Pico TTS uses a different language code format
 
+# --- Phrase Maps ---
+RU_DESCRIPTIVE = {
+    "FIST": "Кулак", "PALM": "Ладонь", "PEACE": "Мир", "THUMB_UP": "Палец вверх",
+    "THUMB_DOWN": "Палец вниз", "POINT": "Указание", "OK": "Окей", "PINCH": "Щепоть",
+    "ILY": "Я тебя люблю", "CALL_ME": "Позвони мне", "L": "Жест L", "ROCK": "Рок",
+    "THREE": "Три", "FOUR": "Четыре",
+}
+
+RU_BASIC = {
+    "FIST": "Помогите", "PALM": "Здравствуйте", "PEACE": "Спасибо", "THUMB_UP": "Да",
+    "THUMB_DOWN": "Нет", "POINT": "Пожалуйста", "OK": "Окей", "PINCH": "Извините",
+    "ILY": "Я тебя люблю", "CALL_ME": "Позвоните моей семье", "L": "Пойдём",
+    "ROCK": "Мне нужна вода", "THREE": "Я хочу пить", "FOUR": "Я хочу есть",
+}
+
+GESTURE_TO_PHRASE = {**RU_DESCRIPTIVE, **RU_BASIC}
+
 def set_pi_volume(level="100%"):
     """Set the system volume on a Raspberry Pi."""
     if shutil.which("amixer"):
