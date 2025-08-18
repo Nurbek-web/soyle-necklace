@@ -59,8 +59,17 @@ try:
 except Exception:
     pass
 
+def set_pi_volume(level="100%"):
+    """Set the system volume on a Raspberry Pi."""
+    if shutil.which("amixer"):
+        try:
+            subprocess.run(["amixer", "set", "Master", level], check=True)
+            print(f"System volume set to {level}.")
+        except Exception as e:
+            print(f"Could not set volume: {e}")
+
 def speak_phrase(phrase: str):
-    """Speak a short phrase. macOS: say; Linux: spd-say/espeak if available."""
+    """Speak a short phrase. macOS: say; Linux: espeak/spd-say."""
     try:
         system = platform.system()
         if system == "Darwin":
@@ -70,23 +79,12 @@ def speak_phrase(phrase: str):
             args += ["-r", str(TTS_RATE_WPM), phrase]
             subprocess.Popen(args)
         elif system == "Linux":
+            # Use a more direct method for speech-dispatcher that is more robust.
             if shutil.which("spd-say"):
-                args = ["spd-say"]
-                if SOYLE_LANG.lower().startswith("ru"):
-                    args += ["-l", "ru"]
-                args += [phrase]
-                subprocess.Popen(args)
+                subprocess.run(['spd-say', '-w', '-l', 'ru', phrase], check=True)
             elif shutil.which("espeak"):
-                args = ["espeak", "-s", str(TTS_RATE_WPM)]
-                if SOYLE_LANG.lower().startswith("ru"):
-                    args += ["-v", "ru"]
-                args += [phrase]
-                subprocess.Popen(args)
-            elif shutil.which("espeak-ng"):
-                args = ["espeak-ng", "-s", str(TTS_RATE_WPM)]
-                if SOYLE_LANG.lower().startswith("ru"):
-                    args += ["-v", "ru"]
-                args += [phrase]
-                subprocess.Popen(args)
-    except Exception:
-        pass
+                subprocess.run(['espeak', '-v', 'ru', '-s', str(TTS_RATE_WPM), phrase], check=True)
+            else:
+                print("No TTS engine found.")
+    except Exception as e:
+        print(f"Error speaking phrase: {e}")

@@ -9,7 +9,7 @@ import numpy as np
 import threading
 
 # Import audio components
-from audio import GESTURE_TO_PHRASE, speak_phrase
+from audio import GESTURE_TO_PHRASE, speak_phrase, set_pi_volume
 
 # --- Audio State ---
 # We use a simple list to hold the last spoken label, making it mutable for threads
@@ -57,7 +57,10 @@ picam2.start()
 time.sleep(2.0) # Give camera extra time to initialize and adjust
 print("Camera initialized.")
 
-# 2. Set up the server socket
+# 2. Set system volume to 100%
+set_pi_volume()
+
+# 3. Set up the server socket
 HOST = '0.0.0.0' # Listen on all network interfaces
 PORT = 8485
 server_socket = socket.socket()
