@@ -9,7 +9,7 @@ import numpy as np
 import threading
 
 # Import audio components
-from audio import GESTURE_TO_PHRASE, speak_phrase, set_pi_volume
+from audio import speak_phrase, set_pi_volume
 
 # --- Audio State ---
 # We use a simple list to hold the last spoken label, making it mutable for threads
@@ -32,10 +32,10 @@ def handle_audio(conn):
 
             # 3. Speak the phrase if it's a new, valid gesture
             now = time.time()
-            if label != audio_state["last_spoken_label"] and label in GESTURE_TO_PHRASE:
+            if label != audio_state["last_spoken_label"]:
                 if (now - audio_state["last_spoken_time"]) > 1.2:
-                    print(f"Received gesture '{label}', speaking phrase...")
-                    speak_phrase(GESTURE_TO_PHRASE[label])
+                    print(f"Received gesture '{label}', playing audio...")
+                    speak_phrase(label) # Pass the label directly
                     audio_state["last_spoken_label"] = label
                     audio_state["last_spoken_time"] = now
 
