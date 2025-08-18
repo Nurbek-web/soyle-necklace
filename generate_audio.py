@@ -32,7 +32,7 @@ for gesture, phrase in RU_BASIC.items():
     
     # 2. Convert MP3 to WAV using ffmpeg
     subprocess.run([
-        "ffmpeg", "-i", mp3_path, "-acodec", "pcm_s16le", "-ar", "22050", wav_path, 
+        "ffmpeg", "-i", mp3_path, "-acodec", "pcm_s16le", "-ac", "2", "-ar", "44100", wav_path, 
         "-y", "-hide_banner", "-loglevel", "error"
     ], check=True)
     
