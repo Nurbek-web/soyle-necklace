@@ -1,97 +1,74 @@
 import socket
 import time
-from picamera2 import Picamera2
-from libcamera import controls
-import simplejpeg
-import cv2
-import numpy as np
-import threading
-
-# Import audio components
 from audio import speak_phrase
 
 # --- Audio State ---
-audio_state = {"last_spoken_label": "NO_HAND", "last_spoken_time": 0.0}
+# We use a dictionary for debouncing, ensuring sounds don't repeat too rapidly.
+audio_state = {"last_spoken_label": None, "last_spoken_time": 0.0}
 
-def handle_audio(conn):
-    """This function runs in a separate thread to handle incoming gesture labels."""
+def handle_connection(conn):
+    """
+    This function now runs in the main thread for a single client.
+    It listens for gesture labels and triggers the audio playback.
+    """
     try:
         while True:
+            # Protocol: a single byte for the label's size, then the UTF-8 label.
             size_bytes = conn.recv(1)
-            if not size_bytes: break
+            if not size_bytes:
+                break # Client disconnected
+            
             label_size = int.from_bytes(size_bytes, 'big')
+            if label_size == 0:
+                continue
+
             label = conn.recv(label_size).decode('utf-8')
-            if not label: break
+            if not label:
+                break # Client disconnected
 
             now = time.time()
-            if label != audio_state["last_spoken_label"]:
-                if (now - audio_state["last_spoken_time"]) > 1.2:
-                    print(f"Received gesture '{label}', playing audio...")
-                    speak_phrase(label)
-                    audio_state["last_spoken_label"] = label
-                    audio_state["last_spoken_time"] = now
+            # Debounce: only speak if it's a new gesture or enough time has passed.
+            if label != audio_state["last_spoken_label"] or (now - audio_state["last_spoken_time"]) > 1.0:
+                print(f"Received command for '{label}', playing audio...")
+                speak_phrase(label)
+                audio_state["last_spoken_label"] = label
+                audio_state["last_spoken_time"] = now
 
     except (BrokenPipeError, ConnectionResetError):
-        print("Audio handler: Client disconnected.")
+        print("Client disconnected.")
     except Exception as e:
-        print(f"Audio handler error: {e}")
+        print(f"An error occurred in the connection handler: {e}")
     finally:
-        print("Audio handler thread stopped.")
+        print("Connection closed.")
+        conn.close()
 
-# 1. Initialize Picamera2
-print("Initializing camera...")
-picam2 = Picamera2()
-# Configure for a wide field of view:
-# Main stream uses a high resolution to force full sensor readout.
-# Lo-res stream is for capture, scaled down from the main stream.
-config = picam2.create_video_configuration(
-    main={"size": (1640, 1232)}, # A binning mode that uses the full sensor width
-    lores={"size": (640, 480), "format": "YUV420"}
-)
-picam2.configure(config)
-# Let the camera's ISP handle white balance automatically.
-picam2.set_controls({"AwbEnable": 1, "AwbMode": controls.AwbModeEnum.Auto})
-picam2.start()
-time.sleep(2.0) # Give camera time to initialize and for AWB to settle.
-print("Camera initialized.")
+def main():
+    HOST = '0.0.0.0'  # Listen on all available network interfaces
+    PORT = 8485
+    
+    server_socket = socket.socket()
+    # This option allows the address to be reused immediately after the server is closed.
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    server_socket.bind((HOST, PORT))
+    server_socket.listen(0)
+    print(f"Soyle Audio Server is running on {HOST}:{PORT}")
+    print("Waiting for a client to connect...")
 
-# 2. Set up the server socket
-HOST = '0.0.0.0' # Listen on all network interfaces
-PORT = 8485
-server_socket = socket.socket()
-server_socket.bind((HOST, PORT))
-server_socket.listen(0)
+    try:
+        while True:
+            # Accept a new connection. This is a blocking call.
+            conn, addr = server_socket.accept()
+            print(f"Connection established with: {addr}")
+            # Handle this one client until they disconnect.
+            handle_connection(conn)
+            print("Client disconnected. Waiting for a new connection...")
+            
+    except KeyboardInterrupt:
+        print("\nServer is shutting down.")
+    finally:
+        server_socket.close()
+        print("Server has been shut down successfully.")
 
-print(f"Server started on {HOST}:{PORT}. Waiting for connection...")
-conn, addr = server_socket.accept()
-print(f"Connection from: {addr}")
-
-# Start the audio handler thread
-audio_thread = threading.Thread(target=handle_audio, args=(conn,))
-audio_thread.daemon = True
-audio_thread.start()
-
-try:
-    while True:
-        # 3. Capture the low-resolution stream which has a wide FoV
-        frame_bgra = picam2.capture_array("lores")
-        
-        # 4. Convert to 3-channel BGR for compatibility with Mediapipe & encoding
-        frame_bgr = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2BGR)
-        
-        # 5. Encode and send frame (manual color correction removed)
-        jpeg_buffer = simplejpeg.encode_jpeg(frame_bgr, quality=75, colorspace='BGR', fastdct=True)
-        
-        size_bytes = len(jpeg_buffer).to_bytes(4, 'big')
-        conn.sendall(size_bytes)
-        conn.sendall(jpeg_buffer)
-
-except (BrokenPipeError, ConnectionResetError):
-    print("Client disconnected.")
-except Exception as e:
-    print(f"An error occurred: {e}")
-finally:
-    conn.close()
-    server_socket.close()
-    picam2.stop()
-    print("Server shut down.")
+if __name__ == "__main__":
+    main()

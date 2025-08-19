@@ -1,74 +1,85 @@
 # generate_audio.py
-from gtts import gTTS
 import os
 import subprocess
+from gtts import gTTS
+import argparse
 
-# --- This script should be run on a machine with a working internet connection ---
-# --- It requires 'ffmpeg' to be installed for audio conversion ---
-
-# --- Phrase Maps ---
+# --- Configuration ---
+# You can add more languages here if gTTS supports them.
+# The key is the ISO 639-1 code that gTTS uses.
 PHRASES = {
     "en": {
-        "FIST": "Help",
-        "PALM": "Stop",
+        "ONE": "Me",
         "PEACE": "Goodbye",
-        "OK": "Okay",
-        "THUMB_UP": "Yes",
-        "THUMB_DOWN": "No",
-        "POINT": "You",
-        "L": "Loser",
-        "THREE": "Three",
-        "FOUR": "I want to eat",
-        "ROCK": "Rock on",
-        "PINCH": "Sorry",
+        "THREE": "I'm thirsty",
+        "FOUR": "I'm hungry",
+        "PALM": "Hello",
+        "FIST": "Help me",
+        "OK": "I'm okay",
+        "POINT": "Look",
+        "L": "Let's go",
+        "ROCK": "Thank you",
         "ILY": "I love you",
         "CALL_ME": "Call me",
-        "ONE": "One"
+        "THUMB_UP": "Yes",
+        "THUMB_DOWN": "No",
+        "PINCH": "Excuse me",
     },
     "ru": {
-        "FIST": "Помогите",
-        "PALM": "Стоп",
-        "PEACE": "Спасибо",
-        "THUMB_UP": "Да",
-        "THUMB_DOWN": "Нет",
-        "POINT": "Пожалуйста",
-        "OK": "Окей",
-        "PINCH": "Извините",
-        "ILY": "Я люблю тебя",
-        "CALL_ME": "Позвони мне",
-        "L": "Пойдём",
-        "ROCK": "Мне нужна вода",
+        "ONE": "Я",
+        "PEACE": "До свидания",
         "THREE": "Я хочу пить",
         "FOUR": "Я хочу есть",
-        "ONE": "Один"
+        "PALM": "Здравствуйте",
+        "FIST": "Помогите мне",
+        "OK": "Я в порядке",
+        "POINT": "Смотри",
+        "L": "Пойдём",
+        "ROCK": "Спасибо",
+        "ILY": "Я люблю тебя",
+        "CALL_ME": "Позвони мне",
+        "THUMB_UP": "Да",
+        "THUMB_DOWN": "Нет",
+        "PINCH": "Извините",
     }
 }
 
-# --- Audio Generation ---
-output_dir = "audio_files"
-os.makedirs(output_dir, exist_ok=True)
-lang = "ru"
+# --- Main execution ---
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate audio files for Soyle gestures.")
+    parser.add_argument('--lang', type=str, default='ru', choices=PHRASES.keys(),
+                        help='Language for the audio phrases.')
+    args = parser.parse_args()
 
-print("Generating and converting audio files to WAV...")
-for gesture, phrase in PHRASES[lang].items():
-    mp3_path = os.path.join(output_dir, f"{gesture}.mp3")
-    wav_path = os.path.join(output_dir, f"{gesture}.wav")
-    
-    print(f"Creating {wav_path} for phrase: '{phrase}'")
-    
-    # 1. Generate MP3
-    tts = gTTS(text=phrase, lang=lang, slow=False)
-    tts.save(mp3_path)
-    
-    # 2. Convert MP3 to WAV using ffmpeg
-    subprocess.run([
-        "ffmpeg", "-i", mp3_path, "-acodec", "pcm_s16le", "-ac", "2", "-ar", "44100", wav_path, 
-        "-y", "-hide_banner", "-loglevel", "error"
-    ], check=True)
-    
-    # 3. Clean up the MP3 file
-    os.remove(mp3_path)
+    lang = args.lang
+    output_dir = "audio_files"
+    os.makedirs(output_dir, exist_ok=True)
 
-print("\nAudio file generation complete.")
-print(f"WAV files are saved in the '{output_dir}' directory.")
-print("Please transfer this entire directory to your Raspberry Pi.")
+    print(f"Selected language: {lang}")
+    print("Generating and converting audio files to WAV...")
+    
+    for gesture, phrase in PHRASES[lang].items():
+        try:
+            # Step 1: Generate MP3 from text using gTTS
+            mp3_path = os.path.join(output_dir, f"{gesture}.mp3")
+            tts = gTTS(text=phrase, lang=lang)
+            tts.save(mp3_path)
+
+            # Step 2: Convert MP3 to WAV using ffmpeg
+            # aplay on Pi works best with WAV files, 44100Hz, 16-bit, stereo.
+            wav_path = os.path.join(output_dir, f"{gesture}.wav")
+            command = [
+                'ffmpeg', '-y', '-i', mp3_path, '-ar', '44100', 
+                '-ac', '2', '-acodec', 'pcm_s16le', wav_path
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Step 3: Clean up the intermediate MP3 file
+            os.remove(mp3_path)
+            print(f"Successfully created {wav_path}")
+            
+        except Exception as e:
+            print(f"Failed to process gesture '{gesture}': {e}")
+            print("Please ensure you have an internet connection and 'ffmpeg' is installed.")
+
+    print("\nAudio file generation complete.")
