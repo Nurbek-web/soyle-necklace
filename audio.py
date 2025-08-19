@@ -7,6 +7,10 @@ AUDIO_DIR = "audio_files"
 
 def speak_phrase(gesture_label: str):
     """Plays a pre-recorded WAV file for the given gesture label using aplay."""
+    # Do not play sounds for non-gestures.
+    if gesture_label in ["NO_HAND", "UNKNOWN", "CONNECTING"]:
+        return
+
     try:
         if not shutil.which("aplay"):
             print("Player (aplay) not found. This is unexpected on a Pi.")

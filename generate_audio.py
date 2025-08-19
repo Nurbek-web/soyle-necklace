@@ -7,11 +7,41 @@ import subprocess
 # --- It requires 'ffmpeg' to be installed for audio conversion ---
 
 # --- Phrase Maps ---
-RU_BASIC = {
-    "FIST": "Помогите", "PALM": "Здравствуйте", "PEACE": "Спасибо", "THUMB_UP": "Да",
-    "THUMB_DOWN": "Нет", "POINT": "Пожалуйста", "OK": "Окей", "PINCH": "Извините",
-    "ILY": "Я тебя люблю", "CALL_ME": "Позвоните моей семье", "L": "Пойдём",
-    "ROCK": "Мне нужна вода", "THREE": "Я хочу пить", "FOUR": "Я хочу есть",
+PHRASES = {
+    "en": {
+        "FIST": "Help",
+        "PALM": "Stop",
+        "PEACE": "Goodbye",
+        "OK": "Okay",
+        "THUMB_UP": "Yes",
+        "THUMB_DOWN": "No",
+        "POINT": "You",
+        "L": "Loser",
+        "THREE": "Three",
+        "FOUR": "I want to eat",
+        "ROCK": "Rock on",
+        "PINCH": "Sorry",
+        "ILY": "I love you",
+        "CALL_ME": "Call me",
+        "ONE": "One"
+    },
+    "ru": {
+        "FIST": "Помогите",
+        "PALM": "Стоп",
+        "PEACE": "Спасибо",
+        "THUMB_UP": "Да",
+        "THUMB_DOWN": "Нет",
+        "POINT": "Пожалуйста",
+        "OK": "Окей",
+        "PINCH": "Извините",
+        "ILY": "Я люблю тебя",
+        "CALL_ME": "Позвони мне",
+        "L": "Пойдём",
+        "ROCK": "Мне нужна вода",
+        "THREE": "Я хочу пить",
+        "FOUR": "Я хочу есть",
+        "ONE": "Один"
+    }
 }
 
 # --- Audio Generation ---
@@ -20,7 +50,7 @@ os.makedirs(output_dir, exist_ok=True)
 lang = "ru"
 
 print("Generating and converting audio files to WAV...")
-for gesture, phrase in RU_BASIC.items():
+for gesture, phrase in PHRASES[lang].items():
     mp3_path = os.path.join(output_dir, f"{gesture}.mp3")
     wav_path = os.path.join(output_dir, f"{gesture}.wav")
     
