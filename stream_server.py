@@ -41,7 +41,13 @@ def handle_audio(conn):
 # 1. Initialize Picamera2
 print("Initializing camera...")
 picam2 = Picamera2()
-config = picam2.create_video_configuration(main={"size": (640, 480)})
+# Configure for a wide field of view:
+# Main stream uses a high resolution to force full sensor readout.
+# Lo-res stream is for capture, scaled down from the main stream.
+config = picam2.create_video_configuration(
+    main={"size": (1640, 1232)}, # A binning mode that uses the full sensor width
+    lores={"size": (640, 480), "format": "YUV420"}
+)
 picam2.configure(config)
 # Let the camera's ISP handle white balance automatically.
 picam2.set_controls({"AwbEnable": 1, "AwbMode": controls.AwbModeEnum.Auto})
@@ -67,8 +73,8 @@ audio_thread.start()
 
 try:
     while True:
-        # 3. Capture frame
-        frame_bgra = picam2.capture_array()
+        # 3. Capture the low-resolution stream which has a wide FoV
+        frame_bgra = picam2.capture_array("lores")
         
         # 4. Convert to 3-channel BGR for compatibility with Mediapipe & encoding
         frame_bgr = cv2.cvtColor(frame_bgra, cv2.COLOR_BGRA2BGR)
