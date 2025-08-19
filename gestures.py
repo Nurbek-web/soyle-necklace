@@ -105,9 +105,10 @@ def classify_gesture(lm):
         if L_ANGLE_MIN <= ang_t_i <= L_ANGLE_MAX and idx_len > L_INDEX_LEN_MIN and th_len > L_THUMB_LEN_MIN:
             return "L", debug_info
     if thumb_ext and index_ext and middle_ext and ring_curled and pinky_curled: return "THREE", debug_info
+    if index_ext and not thumb_ext and not middle_ext and not ring_ext and not pinky_ext: return "ONE", debug_info
 
     ext_count = sum([thumb_ext, index_ext, middle_ext, ring_ext, pinky_ext])
-    if ext_count <= 1: return "FIST", debug_info
+    if ext_count <= 1 and not index_ext: return "FIST", debug_info
     if index_ext and middle_ext and ring_ext and pinky_ext and not (middle_curled or ring_curled): return "PALM", debug_info
     if index_ext and middle_ext and not (ring_ext or pinky_ext): return "PEACE", debug_info
     if thumb_ext and index_curled and middle_curled and ring_curled and pinky_curled:
