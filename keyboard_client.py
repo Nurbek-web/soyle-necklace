@@ -9,21 +9,21 @@ PORT = 8485
 # --- Key to Gesture Mapping ---
 # Organized for a 2-column layout in the UI
 KEY_MAP = [
-    ("1", "ONE", "Me / Я"),
-    ("2", "PEACE", "Goodbye / До свидания"),
-    ("3", "THREE", "I'm thirsty / Я хочу пить"),
-    ("4", "FOUR", "I'm hungry / Я хочу есть"),
-    ("5", "PALM", "Hello / Здравствуйте"),
-    ("f", "FIST", "Help me / Помогите мне"),
-    ("o", "OK", "I'm okay / Я в порядке"),
-    ("p", "POINT", "Look / Смотри"),
-    ("l", "L", "Let's go / Пойдём"),
-    ("r", "ROCK", "Thank you / Спасибо"),
-    ("i", "ILY", "I love you / Я люблю тебя"),
-    ("c", "CALL_ME", "Call me / Позвони мне"),
-    ("t", "THUMB_UP", "Yes / Да"),
-    ("d", "THUMB_DOWN", "No / Нет"),
-    ("s", "PINCH", "Excuse me / Извините"), # 's' for 'sorry'
+    ("1", "ONE", "Me"),
+    ("2", "PEACE", "I'm tired"),
+    ("3", "THREE", "I need the bathroom"),
+    ("4", "FOUR", "I'm hungry"),
+    ("5", "PALM", "Hello"),
+    ("f", "FIST", "Help me"),
+    ("o", "OK", "I'm okay"),
+    ("p", "POINT", "What is that?"),
+    ("l", "L", "I don't understand"),
+    ("r", "ROCK", "Awesome!"),
+    ("i", "ILY", "I love you"),
+    ("c", "CALL_ME", "Call me"),
+    ("t", "THUMB_UP", "Yes"),
+    ("d", "THUMB_DOWN", "No"),
+    ("s", "PINCH", "Excuse me"), # 's' for 'sorry'
 ]
 KEY_TO_GESTURE = {ord(k[0]): k[1] for k in KEY_MAP}
 
@@ -45,7 +45,7 @@ def draw_control_panel(status, last_sent_label):
     panel = np.zeros((height, width, 3), dtype=np.uint8)
     
     # Title
-    cv2.putText(panel, "Soyle | Demo Control Panel", (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(panel, "Demo Control Panel", (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
     
     # Status
     status_color = (0, 255, 0) if "Connected" in status else (0, 0, 255)
