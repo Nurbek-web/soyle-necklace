@@ -9,11 +9,11 @@ PORT = 8485
 # --- Key to Gesture Mapping ---
 # Organized for a 2-column layout in the UI
 KEY_MAP = [
-    ("f", "FIST", "Call my family"),
-    ("5", "PALM", "I need help"),
-    ("4", "FOUR", "I'm in pain"),
-    ("3", "THREE", "I can't breathe"),
-    ("2", "PEACE", "Where is the bathroom?"),
+    ("1", "FIST", "Call my family"),
+    ("2", "PALM", "I need help"),
+    ("3", "FOUR", "I'm in pain"),
+    ("4", "THREE", "I can't breathe"),
+    ("5", "PEACE", "Where is the bathroom?"),
 ]
 KEY_TO_GESTURE = {ord(k[0]): k[1] for k in KEY_MAP}
 
