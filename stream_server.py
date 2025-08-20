@@ -22,9 +22,18 @@ def handle_connection(conn):
             if label_size == 0:
                 continue
 
-            label = conn.recv(label_size).decode('utf-8')
-            if not label:
+            # Ensure we receive all the bytes for the label
+            label_bytes = b''
+            while len(label_bytes) < label_size:
+                chunk = conn.recv(label_size - len(label_bytes))
+                if not chunk:
+                    break # Client disconnected
+                label_bytes += chunk
+            
+            if not label_bytes:
                 break # Client disconnected
+                
+            label = label_bytes.decode('utf-8')
 
             now = time.time()
             # Debounce: only speak if it's a new gesture or enough time has passed.
