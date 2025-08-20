@@ -13,14 +13,11 @@ VIDEO_PORT = 8486
 
 # --- Manual Gesture Override ---
 KEY_TO_GESTURE = {
-    ord('1'): "ONE",       ord('2'): "PEACE",
-    ord('3'): "THREE",     ord('4'): "FOUR",
-    ord('5'): "PALM",      ord('f'): "FIST",
-    ord('o'): "OK",        ord('p'): "POINT",
-    ord('l'): "L",         ord('r'): "ROCK",
-    ord('i'): "ILY",       ord('c'): "CALL_ME",
-    ord('t'): "THUMB_UP",  ord('d'): "THUMB_DOWN",
-    ord('s'): "PINCH",
+    ord('f'): "FIST",      # Call my family
+    ord('5'): "PALM",      # I need help
+    ord('4'): "FOUR",      # I'm in pain
+    ord('3'): "THREE",     # I can't breathe
+    ord('2'): "PEACE",     # Where is the bathroom?
 }
 
 # --- Local Mac module imports ---
